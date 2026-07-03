@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* =============================================
-   mcp-img-to-json — MCP server
-   nano banana · img → JSON
+   mcp-nano-banana — MCP server
+   Nano Banana image generator (Google Gemini image models)
    ---------------------------------------------
    Authenticates with the user's personal nb_live_ API key
    (credits bought on the site) and drives the site's metered
@@ -10,9 +10,9 @@
 
    Tools:
      - get_credits      : remaining credits + tier
-     - list_models      : available models + per-gen credit cost
-     - analyze_image    : image -> structured JSON (img → JSON schema)
-     - generate_image   : prompt -> nano banana image (saved locally)
+     - list_models      : available Nano Banana models + per-gen credit cost
+     - generate_image   : prompt -> Nano Banana image (saved locally)
+     - analyze_image    : image -> structured JSON (character/style/palette…)
      - generate_caption : JSON -> Instagram caption + hashtags (local, free)
    ============================================= */
 
@@ -24,20 +24,20 @@ import path from "node:path";
 import os from "node:os";
 
 // ── CONFIG ────────────────────────────────────────
-const API_KEY = process.env.IMG2JSON_API_KEY || "";
-const API_BASE = (process.env.IMG2JSON_API_BASE || "").replace(/\/+$/, "");
-const OUT_DIR = process.env.IMG2JSON_OUT_DIR || path.join(process.cwd(), "img2json-output");
+const API_KEY = process.env.NANOBANANA_API_KEY || process.env.IMG2JSON_API_KEY || "";
+const API_BASE = (process.env.NANOBANANA_API_BASE || process.env.IMG2JSON_API_BASE || "").replace(/\/+$/, "");
+const OUT_DIR = process.env.NANOBANANA_OUT_DIR || process.env.IMG2JSON_OUT_DIR || path.join(process.cwd(), "nano-banana-output");
 const POLL_INTERVAL = 3000;
 const MAX_ATTEMPTS = 80; // 80 × 3s ≈ 4 min
 
 function assertConfig(): void {
   if (!API_KEY || !API_KEY.startsWith("nb_live_")) {
     throw new Error(
-      "IMG2JSON_API_KEY manquante ou invalide. Crée une clé sur le site (Profil → API) et renseigne-la (format nb_live_…).",
+      "NANOBANANA_API_KEY manquante ou invalide. Crée une clé sur le site (Profil → API) et renseigne-la (format nb_live_…).",
     );
   }
   if (!API_BASE) {
-    throw new Error("IMG2JSON_API_BASE manquante (ex: https://YOUR_PROJECT.supabase.co/functions/v1).");
+    throw new Error("NANOBANANA_API_BASE manquante (ex: https://YOUR_PROJECT.supabase.co/functions/v1).");
   }
 }
 
@@ -137,7 +137,7 @@ function generateCaption(jsonData: any, style = "engaging"): { caption: string; 
   const tpl = resolveSpinSyntax(pool[Math.floor(Math.random() * pool.length)]);
 
   const hashtagBase = [
-    "#AIArt", "#AIGenerated", "#DigitalArt", "#AIArtwork", "#ImageToJSON",
+    "#AIArt", "#AIGenerated", "#DigitalArt", "#AIArtwork", "#NanoBanana",
     ...tags.slice(0, 5).map((t) => "#" + t.replace(/\s+/g, "").replace(/[^a-zA-Z0-9]/g, "")),
     s.art_style ? "#" + s.art_style.replace(/\s+/g, "") : "",
     e.setting ? "#" + e.setting.replace(/\s+/g, "").substring(0, 20) : "",
@@ -147,7 +147,7 @@ function generateCaption(jsonData: any, style = "engaging"): { caption: string; 
 }
 
 // ── MCP SERVER ────────────────────────────────────
-const server = new McpServer({ name: "mcp-img-to-json", version: "0.1.0" });
+const server = new McpServer({ name: "mcp-nano-banana", version: "0.1.0" });
 
 server.registerTool(
   "get_credits",
@@ -257,7 +257,7 @@ server.registerTool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("mcp-img-to-json prêt (stdio).");
+  console.error("mcp-nano-banana prêt (stdio).");
 }
 main().catch((e) => {
   console.error("Erreur fatale:", e);

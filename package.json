@@ -1,10 +1,10 @@
 {
-  "name": "mcp-img-to-json",
+  "name": "mcp-nano-banana",
   "version": "0.1.0",
-  "description": "MCP server for nano banana · img → JSON. Authenticates with the user's nb_live_ API key (credits bought on the site), then runs analyse image→JSON, nano banana image generation and Instagram captions through the site's metered backend. Users never handle a Google key.",
+  "description": "MCP server for Nano Banana image generation (Google Gemini image models). Authenticates with the user's nb_live_ API key (credits bought on the site), then generates images, analyses images into structured JSON, and writes Instagram captions through the site's metered backend. Users never handle a Google key.",
   "type": "module",
   "bin": {
-    "mcp-img-to-json": "dist/index.js"
+    "mcp-nano-banana": "dist/index.js"
   },
   "files": [
     "dist"
