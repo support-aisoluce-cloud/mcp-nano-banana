@@ -1,55 +1,55 @@
 # mcp-nano-banana 🍌
 
-Serveur **MCP** pour générer des images **Nano Banana** (modèles image Google Gemini) depuis n'importe quel client MCP (Claude Desktop, Claude Code, etc.). Il pilote le backend métré du site : tu apportes **ta clé perso** (crédits achetés sur le site), la génération tourne **côté serveur** avec la clé Google du service.
+An **MCP** server to generate **Nano Banana** images (Google Gemini image models) from any MCP client (Claude Desktop, Claude Code, etc.). It drives the site's metered backend: you bring **your own key** (credits bought on the site), and generation runs **server-side** with the service's Google key.
 
-## Outils exposés
+## Tools
 
-- `generate_image` — prompt → **image Nano Banana** générée puis téléchargée localement
-- `analyze_image` — image → JSON structuré (character / outfit / environment / style / palette / tags)
-- `generate_caption` — JSON → légende Instagram + hashtags (local, **gratuit**)
-- `get_credits` / `list_models` — solde de crédits et modèles disponibles
+- `generate_image` — prompt → **Nano Banana image**, generated then downloaded locally
+- `analyze_image` — image → structured JSON (character / outfit / environment / style / palette / tags)
+- `generate_caption` — JSON → Instagram caption + hashtags (local, **free**)
+- `get_credits` / `list_models` — credit balance and available models
 
-« Nano Banana » = modèles image Google Gemini :
+"Nano Banana" = Google Gemini image models:
 
-| MCP `model` | Modèle Google | Note |
+| MCP `model` | Google model | Note |
 |---|---|---|
 | `standard` | `gemini-2.5-flash-image` | Nano Banana |
 | `pro` | `gemini-3-pro-image-preview` | Nano Banana Pro (2K) |
 | `v2` | `gemini-3-pro-image-preview` | Nano Banana 2 |
 
-## Principe de coût
+## Cost model
 
-L'utilisateur **n'apporte aucune clé Google**. Il achète des **crédits** sur le site, crée une **clé API personnelle** (`nb_live_…`) et la met dans le MCP. La génération tourne côté serveur avec la clé Google du service, **en direct sur l'API Gemini**, donc au prix coûtant Google, sans marge revendeur.
+The user **never provides a Google key**. They buy **credits** on the site, create a **personal API key** (`nb_live_…`) and put it in the MCP. Generation runs server-side with the service's Google key, **directly against the Gemini API**, so at Google cost price, with no reseller markup.
 
 ```
-Client MCP ──nb_live_──▶ api-generate (débite crédits) ──▶ nano-proxy ──▶ Google Gemini (direct)
+MCP client ──nb_live_──▶ api-generate (charges credits) ──▶ nano-proxy ──▶ Google Gemini (direct)
                                                                         └▶ Storage `generations` ▶ URL
 ```
 
-## Installation (chaque utilisateur)
+## Install (per user)
 
 ```bash
 cd mcp-nano-banana
 npm install
 npm run build
-cp .env.example .env   # puis renseigne NANOBANANA_API_KEY + NANOBANANA_API_BASE
+cp .env.example .env   # then fill in NANOBANANA_API_KEY + NANOBANANA_API_BASE
 ```
 
-`.env` :
+`.env`:
 ```
-NANOBANANA_API_KEY=nb_live_xxxxxxxx           # créée sur le site (Profil → API)
+NANOBANANA_API_KEY=nb_live_xxxxxxxx           # created on the site (Profile → API)
 NANOBANANA_API_BASE=https://YOUR_PROJECT.supabase.co/functions/v1
-NANOBANANA_OUT_DIR=                            # optionnel (défaut ./nano-banana-output)
+NANOBANANA_OUT_DIR=                            # optional (default ./nano-banana-output)
 ```
 
-### Brancher dans un client MCP (ex. Claude Desktop / Claude Code)
+### Wire it into an MCP client (e.g. Claude Desktop / Claude Code)
 
 ```json
 {
   "mcpServers": {
     "nano-banana": {
       "command": "node",
-      "args": ["C:/chemin/vers/mcp-nano-banana/dist/index.js"],
+      "args": ["C:/path/to/mcp-nano-banana/dist/index.js"],
       "env": {
         "NANOBANANA_API_KEY": "nb_live_xxxxxxxx",
         "NANOBANANA_API_BASE": "https://YOUR_PROJECT.supabase.co/functions/v1"
@@ -59,34 +59,34 @@ NANOBANANA_OUT_DIR=                            # optionnel (défaut ./nano-banan
 }
 ```
 
-## Exemples d'usage
+## Usage examples
 
-- « Génère une pub 9:16 : *dark studio, acid lime neon…* en modèle `v2` » → `generate_image`
-- « Analyse cette image `C:/photos/perso.png` en détaillé » → `analyze_image`
-- « Fais-moi une légende Instagram `story` à partir de ce JSON » → `generate_caption`
+- "Generate a 9:16 ad: *dark studio, acid lime neon…* with model `v2`" → `generate_image`
+- "Analyze this image `C:/photos/portrait.png` in detail" → `analyze_image`
+- "Write me a `story`-style Instagram caption from this JSON" → `generate_caption`
 
-## Côté serveur (déploiement du backend, une fois)
+## Server side (backend deployment, once)
 
-Les Edge Functions sont dans `supabase/functions/` du projet site :
+The Edge Functions live in `supabase/functions/` of the site project:
 
-- **`nano-proxy`** — génère via **Google Gemini direct** + upload Storage.
-- **`api-generate`** — action `generate` / `poll` / `analyze` (métrées) + `aspect_ratio`.
+- **`nano-proxy`** — generates via **Google Gemini direct** + Storage upload.
+- **`api-generate`** — `generate` / `poll` / `analyze` actions (metered) + `aspect_ratio`.
 
 ```bash
-# a. Bucket Storage PUBLIC nommé "generations"
-# b. Secrets Edge Functions
-supabase secrets set NB_GEMINI_KEY=AIza...           # clé Google du service
-#   optionnel : ANALYZE_CREDITS=1
-# c. Déploiement
+# a. PUBLIC Storage bucket named "generations"
+# b. Edge Function secrets
+supabase secrets set NB_GEMINI_KEY=AIza...           # the service's Google key
+#   optional: ANALYZE_CREDITS=1
+# c. Deploy
 supabase functions deploy nano-proxy   --no-verify-jwt
 supabase functions deploy api-generate --no-verify-jwt
 ```
 
-## Sécurité
+## Security
 
-- La clé `nb_live_` n'est qu'un **identifiant de compte + crédits** (révocable, rate-limitée côté `api-generate`). Aucune clé Google côté client.
-- Storage `generations` public = URLs partageables (publication Instagram). Ajoute une politique de rétention si besoin.
+- The `nb_live_` key is only an **account + credits identifier** (revocable, rate-limited in `api-generate`). No Google key on the client side.
+- Public `generations` Storage = shareable URLs (Instagram publishing). Add a retention policy if needed.
 
-## Licence
+## License
 
 MIT

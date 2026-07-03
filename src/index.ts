@@ -33,11 +33,11 @@ const MAX_ATTEMPTS = 80; // 80 × 3s ≈ 4 min
 function assertConfig(): void {
   if (!API_KEY || !API_KEY.startsWith("nb_live_")) {
     throw new Error(
-      "NANOBANANA_API_KEY manquante ou invalide. Crée une clé sur le site (Profil → API) et renseigne-la (format nb_live_…).",
+      "NANOBANANA_API_KEY missing or invalid. Create a key on the site (Profile → API) and enter it (format nb_live_…).",
     );
   }
   if (!API_BASE) {
-    throw new Error("NANOBANANA_API_BASE manquante (ex: https://YOUR_PROJECT.supabase.co/functions/v1).");
+    throw new Error("NANOBANANA_API_BASE missing (e.g.: https://YOUR_PROJECT.supabase.co/functions/v1).");
   }
 }
 
@@ -53,8 +53,8 @@ async function api(body: Record<string, unknown>): Promise<any> {
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok || json.error) {
-    const detail = json?.need != null ? ` (besoin ${json.need}, dispo ${json.have})` : "";
-    throw new Error((json?.error || `Erreur API ${res.status}`) + detail);
+    const detail = json?.need != null ? ` (need ${json.need}, available ${json.have})` : "";
+    throw new Error((json?.error || `API error ${res.status}`) + detail);
   }
   return json;
 }
@@ -66,17 +66,17 @@ async function loadImageBase64(input: string): Promise<{ base64: string; mime: s
   const s = input.trim();
   if (s.startsWith("data:")) {
     const m = s.match(/^data:([^;]+);base64,(.*)$/s);
-    if (!m) throw new Error("data URL invalide");
+    if (!m) throw new Error("invalid data URL");
     return { mime: m[1], base64: m[2] };
   }
   if (/^https?:\/\//i.test(s)) {
     const r = await fetch(s);
-    if (!r.ok) throw new Error(`Téléchargement image échoué (${r.status})`);
+    if (!r.ok) throw new Error(`Image download failed (${r.status})`);
     const mime = r.headers.get("content-type") || "image/jpeg";
     const buf = Buffer.from(await r.arrayBuffer());
     return { mime, base64: buf.toString("base64") };
   }
-  // chemin local
+  // local path
   const abs = s.startsWith("~") ? path.join(os.homedir(), s.slice(1)) : path.resolve(s);
   try {
     const buf = await fs.readFile(abs);
@@ -87,18 +87,18 @@ async function loadImageBase64(input: string): Promise<{ base64: string; mime: s
       ext === ".gif" ? "image/gif" : "image/jpeg";
     return { mime, base64: buf.toString("base64") };
   } catch {
-    // dernier recours : on suppose que c'est déjà du base64 brut
+    // last resort: assume it is already raw base64
     if (/^[A-Za-z0-9+/=\s]+$/.test(s) && s.length > 64) {
       return { mime: "image/jpeg", base64: s.replace(/\s+/g, "") };
     }
-    throw new Error(`Image introuvable / illisible : ${input}`);
+    throw new Error(`Image not found / unreadable: ${input}`);
   }
 }
 
 async function saveImage(url: string, prefix = "nb"): Promise<string> {
   await fs.mkdir(OUT_DIR, { recursive: true });
   const r = await fetch(url);
-  if (!r.ok) throw new Error(`Téléchargement du résultat échoué (${r.status})`);
+  if (!r.ok) throw new Error(`Result download failed (${r.status})`);
   const ct = r.headers.get("content-type") || "";
   const ext = ct.includes("png") ? "png" : ct.includes("webp") ? "webp" : "jpg";
   const buf = Buffer.from(await r.arrayBuffer());
@@ -108,7 +108,7 @@ async function saveImage(url: string, prefix = "nb"): Promise<string> {
   return out;
 }
 
-// ── CAPTION GENERATOR (port de nano-banana-client.js, local & gratuit) ──
+// ── CAPTION GENERATOR (port of nano-banana-client.js, local & free) ──
 function resolveSpinSyntax(text: string): string {
   return text.replace(/\{([^}]+)\}/g, (_, group: string) => {
     const opts = group.split("|");
@@ -152,22 +152,22 @@ const server = new McpServer({ name: "mcp-nano-banana", version: "0.1.0" });
 server.registerTool(
   "get_credits",
   {
-    title: "Solde de crédits",
-    description: "Retourne le solde de crédits et le tier de l'utilisateur (clé nb_live_).",
+    title: "Credit balance",
+    description: "Returns the user's credit balance and tier (nb_live_ key).",
     inputSchema: {},
   },
   async () => {
     assertConfig();
     const r = await api({ action: "credits" });
-    return { content: [{ type: "text", text: `Crédits : ${r.credits} · tier : ${r.tier}` }] };
+    return { content: [{ type: "text", text: `Credits: ${r.credits} · tier: ${r.tier}` }] };
   },
 );
 
 server.registerTool(
   "list_models",
   {
-    title: "Modèles disponibles",
-    description: "Liste les modèles nano banana disponibles et leur coût en crédits par génération.",
+    title: "Available models",
+    description: "Lists the available nano banana models and their credit cost per generation.",
     inputSchema: {},
   },
   async () => {
@@ -180,12 +180,12 @@ server.registerTool(
 server.registerTool(
   "analyze_image",
   {
-    title: "Analyser une image → JSON",
+    title: "Analyze an image → JSON",
     description:
-      "Analyse une image (chemin local, URL ou base64) et retourne un JSON structuré (character, outfit, environment, style, color_palette, prompt_tags). Consomme des crédits.",
+      "Analyzes an image (local path, URL or base64) and returns structured JSON (character, outfit, environment, style, color_palette, prompt_tags). Consumes credits.",
     inputSchema: {
-      image: z.string().describe("Chemin local, URL http(s), data URL ou base64 brut de l'image."),
-      detail: z.enum(["rapide", "standard", "détaillé"]).default("standard").describe("Niveau de détail de l'analyse."),
+      image: z.string().describe("Local path, http(s) URL, data URL or raw base64 of the image."),
+      detail: z.enum(["rapide", "standard", "détaillé"]).default("standard").describe("Level of detail of the analysis."),
     },
   },
   async ({ image, detail }) => {
@@ -193,7 +193,7 @@ server.registerTool(
     const { base64, mime } = await loadImageBase64(image);
     const r = await api({ action: "analyze", image_base64: base64, mime, detail });
     const pretty = typeof r.json === "string" ? r.json : JSON.stringify(r.json, null, 2);
-    const left = r.credits_left != null ? `\n\n(crédits restants : ${r.credits_left})` : "";
+    const left = r.credits_left != null ? `\n\n(credits remaining: ${r.credits_left})` : "";
     return { content: [{ type: "text", text: pretty + left }] };
   },
 );
@@ -201,36 +201,36 @@ server.registerTool(
 server.registerTool(
   "generate_image",
   {
-    title: "Générer une image nano banana",
+    title: "Generate a nano banana image",
     description:
-      "Génère une image nano banana à partir d'un prompt (ou d'un JSON analysé). Tourne côté serveur via la clé Google du service ; consomme les crédits de l'utilisateur. L'image est téléchargée localement.",
+      "Generates a nano banana image from a prompt (or from analyzed JSON). Runs server-side via the service's Google key; consumes the user's credits. The image is downloaded locally.",
     inputSchema: {
-      prompt: z.string().describe("Prompt texte décrivant l'image à générer."),
+      prompt: z.string().describe("Text prompt describing the image to generate."),
       model: z.enum(["standard", "pro", "v2"]).default("standard").describe("standard = Nano Banana, pro = Nano Banana Pro, v2 = Nano Banana 2."),
-      aspect_ratio: z.string().default("9:16").describe("Ratio (ex: 9:16 story/reels, 4:5 feed, 1:1 carré)."),
+      aspect_ratio: z.string().default("9:16").describe("Ratio (e.g.: 9:16 story/reels, 4:5 feed, 1:1 square)."),
     },
   },
   async ({ prompt, model, aspect_ratio }) => {
     assertConfig();
     const sub = await api({ action: "generate", model, prompt, aspect_ratio });
     const taskId = sub.taskId;
-    if (!taskId) throw new Error("Pas de taskId reçu.");
+    if (!taskId) throw new Error("No taskId received.");
 
     let imageUrl = "";
     for (let i = 0; i < MAX_ATTEMPTS; i++) {
       await sleep(POLL_INTERVAL);
       const d = await api({ action: "poll", taskId });
       if (d.status === "done" && d.imageUrl) { imageUrl = d.imageUrl; break; }
-      if (d.status === "failed") throw new Error(d.error || "Génération échouée.");
+      if (d.status === "failed") throw new Error(d.error || "Generation failed.");
     }
-    if (!imageUrl) throw new Error("Timeout : génération > 4 min.");
+    if (!imageUrl) throw new Error("Timeout: generation > 4 min.");
 
     const saved = await saveImage(imageUrl, "nb");
-    const charged = sub.charged != null ? ` · ${sub.charged} crédits débités` : "";
-    const left = sub.credits_left != null ? ` · ${sub.credits_left} restants` : "";
+    const charged = sub.charged != null ? ` · ${sub.charged} credits charged` : "";
+    const left = sub.credits_left != null ? ` · ${sub.credits_left} remaining` : "";
     return {
       content: [
-        { type: "text", text: `✅ Image générée (${model}, ${aspect_ratio})${charged}${left}\nURL : ${imageUrl}\nSauvegardée : ${saved}` },
+        { type: "text", text: `✅ Image generated (${model}, ${aspect_ratio})${charged}${left}\nURL: ${imageUrl}\nSaved: ${saved}` },
       ],
     };
   },
@@ -239,11 +239,11 @@ server.registerTool(
 server.registerTool(
   "generate_caption",
   {
-    title: "Générer une légende Instagram",
-    description: "Génère une légende Instagram + hashtags à partir d'un JSON analysé (local, gratuit, aucun crédit).",
+    title: "Generate an Instagram caption",
+    description: "Generates an Instagram caption + hashtags from analyzed JSON (local, free, no credits).",
     inputSchema: {
-      json: z.union([z.string(), z.record(z.any())]).describe("JSON analysé (objet ou chaîne JSON)."),
-      style: z.enum(["engaging", "minimal", "story"]).default("engaging").describe("Style de légende."),
+      json: z.union([z.string(), z.record(z.any())]).describe("Analyzed JSON (object or JSON string)."),
+      style: z.enum(["engaging", "minimal", "story"]).default("engaging").describe("Caption style."),
     },
   },
   async ({ json, style }) => {
@@ -257,9 +257,9 @@ server.registerTool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("mcp-nano-banana prêt (stdio).");
+  console.error("mcp-nano-banana ready (stdio).");
 }
 main().catch((e) => {
-  console.error("Erreur fatale:", e);
+  console.error("Fatal error:", e);
   process.exit(1);
 });
