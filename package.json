@@ -1,0 +1,28 @@
+{
+  "name": "mcp-img-to-json",
+  "version": "0.1.0",
+  "description": "MCP server for nano banana · img → JSON. Authenticates with the user's nb_live_ API key (credits bought on the site), then runs analyse image→JSON, nano banana image generation and Instagram captions through the site's metered backend. Users never handle a Google key.",
+  "type": "module",
+  "bin": {
+    "mcp-img-to-json": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
